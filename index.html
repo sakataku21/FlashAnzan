@@ -672,7 +672,8 @@
   /* ----- 数字を表示領域の 7 割に合わせる ----- */
   var FILL_RATIO = 0.7;
   var REFERENCE_PX = 100;
-  var fitting = null;   // 現在合わせている文字列。画面回転時の再計算に使う。
+  var REFERENCE_DIGITS = 3;   // 3 桁が 7 割に収まる大きさを基準にする
+  var fitted = false;         // 全画面表示中かどうか。画面回転時の再計算に使う。
 
   // 実測用の隠し要素。表示中の見た目と同じ書体・字重で測る。
   function measure(texts, style) {
@@ -702,15 +703,36 @@
   }
 
   /**
-   * 出題中は数字の大きさを変えたくないので、その回に出る文字をすべて渡し、
-   * 一番大きいものが 7 割に収まるサイズへ揃える。
+   * 基準にする文字列。一番幅の広い数字を 3 つ並べたもの。
+   * 3 桁が確実に 7 割へ収まり、かつ最大限大きくなる。
    */
-  function fitDisplay(texts) {
-    fitting = texts;
+  function referenceSample(style) {
+    var widest = '0';
+    var widestWidth = 0;
+
+    for (var i = 0; i <= 9; i++) {
+      var width = measure([String(i)], style).width;
+      if (width > widestWidth) {
+        widestWidth = width;
+        widest = String(i);
+      }
+    }
+
+    var sample = '';
+    for (var j = 0; j < REFERENCE_DIGITS; j++) { sample += widest; }
+    return sample;
+  }
+
+  /**
+   * 桁数やカウントダウンによらず、常に 3 桁基準の大きさに揃える。
+   * 1 桁でも 2 桁でも字の大きさが変わらないので、読み取る感覚が揃う。
+   */
+  function fitDisplay() {
+    fitted = true;
     el.display.classList.add('fill');
 
     var style = window.getComputedStyle(el.display);
-    var size = measure(texts, style);
+    var size = measure([referenceSample(style)], style);
     if (!size.width || !size.height) { return; }
 
     var scale = Math.min(
@@ -721,7 +743,7 @@
   }
 
   function releaseDisplay() {
-    fitting = null;
+    fitted = false;
     el.display.classList.remove('fill');
     el.display.style.fontSize = '';
   }
@@ -778,7 +800,7 @@
   function countdown(n) {
     el.caption.textContent = '';
     el.display.className = 'display countdown';
-    fitDisplay(['3', '2', '1']);
+    fitDisplay();
 
     function tick(value) {
       if (value > 0) {
@@ -806,7 +828,7 @@
 
     el.caption.textContent = '';
     el.display.className = 'display';
-    fitDisplay(numbers.map(String));
+    fitDisplay();
 
     numbers.forEach(function (num, i) {
       later(function () {
@@ -919,7 +941,7 @@
 
   // 画面の回転やウィンドウサイズの変更にも 7 割を保つ
   window.addEventListener('resize', function () {
-    if (fitting) { fitDisplay(fitting); }
+    if (fitted) { fitDisplay(); }
   });
 
   // 実測の前に abacus2 を読み込んでおく（未読込だと代替書体の幅で測ってしまう）
