@@ -6,7 +6,11 @@
  * 手順は README.md を参照してください。
  */
 
-var HEADERS = ['日時', '正誤', '桁数', '口数', '入力した答', '正答'];
+var HEADERS = ['日時', '正誤', '桁数', '口数', '秒数', '入力した答', '正答'];
+
+// 「秒数」列を足す前の見出し。既存シートを見分けて移行するために使う。
+var HEADERS_V1 = ['日時', '正誤', '桁数', '口数', '入力した答', '正答'];
+var SECONDS_COLUMN = 5;
 
 function doPost(e) {
   // 同時に複数の結果が届いても行が壊れないよう直列化する
@@ -22,6 +26,7 @@ function doPost(e) {
       data.result,
       data.digits,
       data.count,
+      Number(data.seconds),
       data.answer === '' || data.answer === null ? '' : Number(data.answer),
       Number(data.correct)
     ]);
@@ -45,7 +50,10 @@ function doGet() {
 function getUserSheet(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(name);
-  if (sheet) { return sheet; }
+  if (sheet) {
+    migrateToV2(sheet);
+    return sheet;
+  }
 
   sheet = ss.insertSheet(name);
   sheet.appendRow(HEADERS);
@@ -54,6 +62,25 @@ function getUserSheet(name) {
   sheet.getRange('A:A').setNumberFormat('yyyy/MM/dd HH:mm:ss');
   sheet.setColumnWidth(1, 160);
   return sheet;
+}
+
+/**
+ * 「秒数」列を足す前に作られたシートに、口数の右へ空の列を差し込みます。
+ * 見出しが旧版と完全に一致するときだけ動くので、何度呼んでも安全です。
+ * 既存の行は「入力した答」「正答」ごと右にずれるため、見出しとの対応は保たれます。
+ */
+function migrateToV2(sheet) {
+  if (sheet.getLastColumn() !== HEADERS_V1.length) { return; }
+
+  var header = sheet.getRange(1, 1, 1, HEADERS_V1.length).getValues()[0];
+  for (var i = 0; i < HEADERS_V1.length; i++) {
+    if (String(header[i]).trim() !== HEADERS_V1[i]) { return; }
+  }
+
+  sheet.insertColumnBefore(SECONDS_COLUMN);
+  sheet.getRange(1, SECONDS_COLUMN)
+       .setValue(HEADERS[SECONDS_COLUMN - 1])
+       .setFontWeight('bold');
 }
 
 /**
