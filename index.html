@@ -223,6 +223,17 @@
   .display.countdown { color: var(--accent-2); }
   .display.answer { color: var(--accent); }
 
+  /* カウントダウンと出題中は、画面いっぱいの層にして中央に置く。
+     文字サイズは JS が表示領域の 7 割に収まるよう実測して決める。 */
+  .display.fill {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    min-height: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
   .caption {
     color: var(--muted);
     font-size: 0.9rem;
@@ -658,9 +669,67 @@
     });
   }
 
+  /* ----- 数字を表示領域の 7 割に合わせる ----- */
+  var FILL_RATIO = 0.7;
+  var REFERENCE_PX = 100;
+  var fitting = null;   // 現在合わせている文字列。画面回転時の再計算に使う。
+
+  // 実測用の隠し要素。表示中の見た目と同じ書体・字重で測る。
+  function measure(texts, style) {
+    var probe = document.createElement('div');
+    // 字間まで写さないと、実際の描画のほうが広くなって 7 割をはみ出す。
+    // 算出値は px なので、基準サイズとの比で換算してから渡す。
+    var currentSize = parseFloat(style.fontSize) || REFERENCE_PX;
+    var spacing = parseFloat(style.letterSpacing) || 0;
+    var probeSpacing = spacing / currentSize * REFERENCE_PX;
+
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;' +
+                          'white-space:nowrap;line-height:1;font-size:' + REFERENCE_PX + 'px;' +
+                          'font-family:' + style.fontFamily + ';font-weight:' + style.fontWeight +
+                          ';letter-spacing:' + probeSpacing + 'px' +
+                          ';font-variant-numeric:' + style.fontVariantNumeric;
+    document.body.appendChild(probe);
+
+    var width = 0, height = 0;
+    texts.forEach(function (text) {
+      probe.textContent = text;
+      var box = probe.getBoundingClientRect();
+      if (box.width > width) { width = box.width; }
+      if (box.height > height) { height = box.height; }
+    });
+    probe.remove();
+    return { width: width, height: height };
+  }
+
+  /**
+   * 出題中は数字の大きさを変えたくないので、その回に出る文字をすべて渡し、
+   * 一番大きいものが 7 割に収まるサイズへ揃える。
+   */
+  function fitDisplay(texts) {
+    fitting = texts;
+    el.display.classList.add('fill');
+
+    var style = window.getComputedStyle(el.display);
+    var size = measure(texts, style);
+    if (!size.width || !size.height) { return; }
+
+    var scale = Math.min(
+      window.innerWidth  * FILL_RATIO / size.width,
+      window.innerHeight * FILL_RATIO / size.height
+    );
+    el.display.style.fontSize = (REFERENCE_PX * scale) + 'px';
+  }
+
+  function releaseDisplay() {
+    fitting = null;
+    el.display.classList.remove('fill');
+    el.display.style.fontSize = '';
+  }
+
   /* ----- 画面遷移 ----- */
   function showSettings() {
     clearTimers();
+    releaseDisplay();
     el.settings.classList.remove('hidden');
     el.stage.classList.add('hidden');
     el.review.classList.add('hidden');
@@ -707,8 +776,9 @@
   }
 
   function countdown(n) {
-    el.caption.textContent = 'まもなく開始';
+    el.caption.textContent = '';
     el.display.className = 'display countdown';
+    fitDisplay(['3', '2', '1']);
 
     function tick(value) {
       if (value > 0) {
@@ -736,6 +806,7 @@
 
     el.caption.textContent = '';
     el.display.className = 'display';
+    fitDisplay(numbers.map(String));
 
     numbers.forEach(function (num, i) {
       later(function () {
@@ -749,6 +820,7 @@
   }
 
   function finish() {
+    releaseDisplay();
     el.caption.textContent = '答えは？';
     el.display.className = 'display';
     el.display.textContent = '?';
@@ -844,6 +916,16 @@
       if (e.key === 'Enter') { start(false); }
     });
   });
+
+  // 画面の回転やウィンドウサイズの変更にも 7 割を保つ
+  window.addEventListener('resize', function () {
+    if (fitting) { fitDisplay(fitting); }
+  });
+
+  // 実測の前に abacus2 を読み込んでおく（未読込だと代替書体の幅で測ってしまう）
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load('100px abacus2', '0123456789');
+  }
 
   restoreSaved();
 })();
