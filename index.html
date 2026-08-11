@@ -113,6 +113,61 @@
 
   .unit { color: var(--muted); font-size: 0.9rem; width: 2.5em; }
 
+  /* ---------- ユーザー名・記録設定 ---------- */
+  input[type="text"], input[type="url"] {
+    padding: 10px 12px;
+    font-size: 1rem;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  input[type="text"]:focus, input[type="url"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  #userName { width: 180px; }
+
+  .config {
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .config summary {
+    font-size: 0.85rem;
+    color: var(--muted);
+    cursor: pointer;
+    list-style: revert;
+  }
+  .config .body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 0 4px;
+  }
+  .config label {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .config input { width: 100%; }
+  .config p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .record-status {
+    margin: 0;
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--muted);
+    min-height: 1.3em;
+  }
+  .record-status.ok { color: var(--accent); }
+  .record-status.ng { color: var(--danger); }
+
   .hint {
     margin: 14px 0 0;
     font-size: 0.82rem;
@@ -301,6 +356,15 @@
 <!-- 設定画面 -->
 <section id="settings" class="card">
   <div class="field">
+    <label for="userName">ユーザー名</label>
+    <div class="control">
+      <input type="text" id="userName" list="userList" autocomplete="off"
+             placeholder="名前を入力">
+      <datalist id="userList"></datalist>
+    </div>
+  </div>
+
+  <div class="field">
     <label for="digits">桁数</label>
     <div class="control">
       <input type="number" id="digits" min="1" max="3" step="1" value="1">
@@ -334,6 +398,20 @@
     カウントダウンと数字の切り替わりに合わせて音が鳴ります。右上のボタンで音のオン・オフを切り替えられます。<br>
     問題の後に表示される入力欄に答えを書いて「答えを表示」を押すと、正誤を判定します（未入力でも答えだけ確認できます）。
   </p>
+
+  <details class="config" id="config">
+    <summary>スプレッドシートへの記録設定</summary>
+    <div class="body">
+      <label for="endpoint">Google Apps Script のウェブアプリ URL</label>
+      <input type="url" id="endpoint" autocomplete="off"
+             placeholder="https://script.google.com/macros/s/.../exec">
+      <p>
+        設定すると、答え合わせのたびに結果がスプレッドシートへ記録されます。
+        ユーザー名ごとにシートが分かれ、日時・正誤・桁数・口数・入力した答・正答が1行ずつ追記されます。<br>
+        URL とユーザー名の両方が入力されているときだけ送信します。設定手順はリポジトリの README を参照してください。
+      </p>
+    </div>
+  </details>
 </section>
 
 <!-- 表示・結果画面 -->
@@ -348,6 +426,7 @@
   </div>
 
   <p class="judge" id="judge"></p>
+  <p class="record-status" id="recordStatus"></p>
 
   <div class="actions hidden" id="actions">
     <button id="answerBtn" class="btn-accent">答えを表示</button>
@@ -439,6 +518,34 @@
     };
   })();
 
+  /* ----- 保存領域（localStorage が使えない環境でも動くようにする） ----- */
+  var store = (function () {
+    var PREFIX = 'flashAnzan.';
+    var ok = (function () {
+      try {
+        localStorage.setItem(PREFIX + 'probe', '1');
+        localStorage.removeItem(PREFIX + 'probe');
+        return true;
+      } catch (e) { return false; }
+    })();
+    var memory = {};
+
+    return {
+      get: function (key, fallback) {
+        try {
+          var raw = ok ? localStorage.getItem(PREFIX + key) : memory[key];
+          return raw === null || raw === undefined ? fallback : JSON.parse(raw);
+        } catch (e) { return fallback; }
+      },
+      set: function (key, value) {
+        var raw = JSON.stringify(value);
+        try {
+          if (ok) { localStorage.setItem(PREFIX + key, raw); } else { memory[key] = raw; }
+        } catch (e) { memory[key] = raw; }
+      }
+    };
+  })();
+
   var el = {
     settings:   document.getElementById('settings'),
     digits:     document.getElementById('digits'),
@@ -459,7 +566,12 @@
     soundBtn:   document.getElementById('soundBtn'),
     entry:      document.getElementById('entry'),
     answerInput: document.getElementById('answerInput'),
-    judge:      document.getElementById('judge')
+    judge:      document.getElementById('judge'),
+    userName:   document.getElementById('userName'),
+    userList:   document.getElementById('userList'),
+    endpoint:   document.getElementById('endpoint'),
+    config:     document.getElementById('config'),
+    recordStatus: document.getElementById('recordStatus')
   };
 
   var timers = [];
@@ -509,6 +621,79 @@
     return list.reduce(function (a, b) { return a + b; }, 0);
   }
 
+  /* ----- ユーザー名（入力した名前は選択リストに残す） ----- */
+  function renderUserList(users) {
+    el.userList.innerHTML = '';
+    users.forEach(function (name) {
+      var option = document.createElement('option');
+      option.value = name;
+      el.userList.appendChild(option);
+    });
+  }
+
+  function rememberUser(name) {
+    if (!name) { return; }
+    var users = store.get('users', []);
+    if (users.indexOf(name) === -1) {
+      users.push(name);
+      users.sort();
+      store.set('users', users);
+      renderUserList(users);
+    }
+    store.set('lastUser', name);
+  }
+
+  function restoreSaved() {
+    var users = store.get('users', []);
+    renderUserList(users);
+    el.userName.value = store.get('lastUser', '');
+    el.endpoint.value = store.get('endpoint', '');
+    // URL 未設定なら記録設定を開いた状態にして気づけるようにする
+    if (!el.endpoint.value) { el.config.open = false; }
+  }
+
+  /* ----- スプレッドシートへの記録 ----- */
+  function setRecordStatus(text, kind) {
+    el.recordStatus.textContent = text;
+    el.recordStatus.className = 'record-status' + (kind ? ' ' + kind : '');
+  }
+
+  function recordResult(correct, guess) {
+    var user = el.userName.value.trim();
+    var endpoint = el.endpoint.value.trim();
+
+    if (!endpoint) { setRecordStatus('', ''); return; }
+    if (!user) {
+      setRecordStatus('ユーザー名が未入力のため記録しませんでした', 'ng');
+      return;
+    }
+
+    var payload = {
+      user: user,
+      at: new Date().toISOString(),
+      result: guess === null ? '未回答' : (guess === correct ? '正解' : '不正解'),
+      digits: settings.digits,
+      count: settings.count,
+      answer: guess === null ? '' : guess,
+      correct: correct
+    };
+
+    setRecordStatus('記録を送信中…', '');
+
+    // Apps Script は CORS ヘッダーを返さないため no-cors で送る。
+    // 送信は届くが応答は読めないので、成否はスプレッドシート側で確認する。
+    fetch(endpoint, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).then(function () {
+      setRecordStatus('「' + user + '」のシートに送信しました', 'ok');
+    })['catch'](function () {
+      setRecordStatus('送信に失敗しました。記録設定の URL を確認してください', 'ng');
+    });
+  }
+
   /* ----- 画面遷移 ----- */
   function showSettings() {
     clearTimers();
@@ -535,6 +720,7 @@
     el.answerInput.disabled = false;
     el.judge.textContent = '';
     el.judge.className = 'judge';
+    setRecordStatus('', '');
   }
 
   /* ----- 実行フロー ----- */
@@ -548,6 +734,8 @@
       el.error.textContent = '';
       settings = s;
       numbers = generateNumbers(s.digits, s.count);
+      rememberUser(el.userName.value.trim());
+      store.set('endpoint', el.endpoint.value.trim());
     }
 
     clearTimers();
@@ -646,6 +834,8 @@
       el.reviewList.appendChild(li);
     });
     el.review.classList.remove('hidden');
+
+    recordResult(correct, guess === null || isNaN(guess) ? null : guess);
   }
 
   /* ----- イベント ----- */
@@ -685,12 +875,18 @@
     el.soundBtn.setAttribute('aria-pressed', 'false');
   }
 
-  [el.digits, el.count, el.seconds].forEach(function (input) {
+  [el.digits, el.count, el.seconds, el.userName].forEach(function (input) {
     input.addEventListener('input', function () { el.error.textContent = ''; });
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { start(false); }
     });
   });
+
+  el.endpoint.addEventListener('change', function () {
+    store.set('endpoint', el.endpoint.value.trim());
+  });
+
+  restoreSaved();
 })();
 </script>
 </body>
