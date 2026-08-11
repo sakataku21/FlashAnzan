@@ -113,8 +113,9 @@
 
   .unit { color: var(--muted); font-size: 0.9rem; width: 2.5em; }
 
-  /* ---------- ユーザー名・記録設定 ---------- */
-  input[type="text"], input[type="url"] {
+  /* ---------- ユーザー名 ---------- */
+  input[type="text"] {
+    width: 180px;
     padding: 10px 12px;
     font-size: 1rem;
     color: var(--text);
@@ -122,40 +123,9 @@
     border: 1px solid var(--border);
     border-radius: 8px;
   }
-  input[type="text"]:focus, input[type="url"]:focus {
+  input[type="text"]:focus {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
-  }
-
-  #userName { width: 180px; }
-
-  .config {
-    margin-top: 14px;
-    border-top: 1px solid var(--border);
-    padding-top: 12px;
-  }
-  .config summary {
-    font-size: 0.85rem;
-    color: var(--muted);
-    cursor: pointer;
-    list-style: revert;
-  }
-  .config .body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px 0 4px;
-  }
-  .config label {
-    font-size: 0.82rem;
-    color: var(--muted);
-  }
-  .config input { width: 100%; }
-  .config p {
-    margin: 0;
-    font-size: 0.78rem;
-    color: var(--muted);
-    line-height: 1.6;
   }
 
   .record-status {
@@ -396,22 +366,9 @@
     桁数 1〜3 / 口数 5〜20 / 指定した秒数の間に、すべての口数を均等な間隔で表示します。<br>
     スタート後に 3 からカウントダウンが始まります。答えは最後の「答えを表示」ボタンで確認してください。<br>
     カウントダウンと数字の切り替わりに合わせて音が鳴ります。右上のボタンで音のオン・オフを切り替えられます。<br>
-    問題の後に表示される入力欄に答えを書いて「答えを表示」を押すと、正誤を判定します（未入力でも答えだけ確認できます）。
+    問題の後に表示される入力欄に答えを書いて「答えを表示」を押すと、正誤を判定します（未入力でも答えだけ確認できます）。<br>
+    答え合わせの結果は、ユーザー名ごとのシートとしてスプレッドシートに自動で記録されます（ユーザー名が未入力のときは記録しません）。
   </p>
-
-  <details class="config" id="config">
-    <summary>スプレッドシートへの記録設定</summary>
-    <div class="body">
-      <label for="endpoint">Google Apps Script のウェブアプリ URL</label>
-      <input type="url" id="endpoint" autocomplete="off"
-             placeholder="https://script.google.com/macros/s/.../exec">
-      <p>
-        設定すると、答え合わせのたびに結果がスプレッドシートへ記録されます。
-        ユーザー名ごとにシートが分かれ、日時・正誤・桁数・口数・入力した答・正答が1行ずつ追記されます。<br>
-        URL とユーザー名の両方が入力されているときだけ送信します。設定手順はリポジトリの README を参照してください。
-      </p>
-    </div>
-  </details>
 </section>
 
 <!-- 表示・結果画面 -->
@@ -450,6 +407,9 @@
     count:   { min: 5,   max: 20  },
     seconds: { min: 1,   max: 120 }
   };
+
+  // 記録先の Google Apps Script ウェブアプリ
+  var ENDPOINT = 'https://script.google.com/macros/s/AKfycbzu9Ha6_2inDb_2hNzz-gOl6A5_Ii_7LZpy-aCF_gm1DcG_BBTcj5mosf27RavcEs1ztQ/exec';
 
   /* ----- 効果音（Web Audio API で生成するため音源ファイル不要） ----- */
   var audio = (function () {
@@ -569,8 +529,6 @@
     judge:      document.getElementById('judge'),
     userName:   document.getElementById('userName'),
     userList:   document.getElementById('userList'),
-    endpoint:   document.getElementById('endpoint'),
-    config:     document.getElementById('config'),
     recordStatus: document.getElementById('recordStatus')
   };
 
@@ -644,12 +602,8 @@
   }
 
   function restoreSaved() {
-    var users = store.get('users', []);
-    renderUserList(users);
+    renderUserList(store.get('users', []));
     el.userName.value = store.get('lastUser', '');
-    el.endpoint.value = store.get('endpoint', '');
-    // URL 未設定なら記録設定を開いた状態にして気づけるようにする
-    if (!el.endpoint.value) { el.config.open = false; }
   }
 
   /* ----- スプレッドシートへの記録 ----- */
@@ -660,9 +614,7 @@
 
   function recordResult(correct, guess) {
     var user = el.userName.value.trim();
-    var endpoint = el.endpoint.value.trim();
 
-    if (!endpoint) { setRecordStatus('', ''); return; }
     if (!user) {
       setRecordStatus('ユーザー名が未入力のため記録しませんでした', 'ng');
       return;
@@ -682,7 +634,7 @@
 
     // Apps Script は CORS ヘッダーを返さないため no-cors で送る。
     // 送信は届くが応答は読めないので、成否はスプレッドシート側で確認する。
-    fetch(endpoint, {
+    fetch(ENDPOINT, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -690,7 +642,7 @@
     }).then(function () {
       setRecordStatus('「' + user + '」のシートに送信しました', 'ok');
     })['catch'](function () {
-      setRecordStatus('送信に失敗しました。記録設定の URL を確認してください', 'ng');
+      setRecordStatus('送信に失敗しました。通信環境を確認してください', 'ng');
     });
   }
 
@@ -735,7 +687,6 @@
       settings = s;
       numbers = generateNumbers(s.digits, s.count);
       rememberUser(el.userName.value.trim());
-      store.set('endpoint', el.endpoint.value.trim());
     }
 
     clearTimers();
@@ -880,10 +831,6 @@
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { start(false); }
     });
-  });
-
-  el.endpoint.addEventListener('change', function () {
-    store.set('endpoint', el.endpoint.value.trim());
   });
 
   restoreSaved();
