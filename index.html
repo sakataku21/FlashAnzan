@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フラッシュ暗算</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2133;
+    --panel-2: #232c42;
+    --text: #e8edf7;
+    --muted: #97a3bd;
+    --accent: #4dd4ac;
+    --accent-2: #ffb648;
+    --danger: #ff6b6b;
+    --border: #2e3852;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN",
+                 "Noto Sans JP", "Meiryo", sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+    gap: 24px;
+  }
+
+  .header {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    margin: 0;
+    letter-spacing: 0.08em;
+  }
+
+  .btn-icon {
+    position: absolute;
+    right: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 8px 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .btn-icon[aria-pressed="false"] { opacity: 0.5; }
+
+  .card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+
+  /* ---------- 設定パネル ---------- */
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .field:last-of-type { border-bottom: none; }
+
+  .field label {
+    font-size: 0.95rem;
+    color: var(--muted);
+  }
+
+  .control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  input[type="number"] {
+    width: 88px;
+    padding: 10px 12px;
+    font-size: 1rem;
+    text-align: right;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="number"]:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .unit { color: var(--muted); font-size: 0.9rem; width: 2.5em; }
+
+  .hint {
+    margin: 14px 0 0;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .error {
+    margin: 12px 0 0;
+    color: var(--danger);
+    font-size: 0.85rem;
+    min-height: 1.2em;
+  }
+
+  /* ---------- ボタン ---------- */
+  button {
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 14px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.06s ease, opacity 0.15s ease;
+  }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .btn-primary {
+    width: 100%;
+    margin-top: 18px;
+    background: var(--accent);
+    color: #06231b;
+  }
+
+  .btn-secondary {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-accent {
+    background: var(--accent-2);
+    color: #2b1a00;
+  }
+
+  /* ---------- 表示ステージ ---------- */
+  .stage {
+    width: 100%;
+    max-width: 520px;
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+
+  .display {
+    font-size: clamp(4rem, 22vw, 8rem);
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    text-align: center;
+    min-height: 1.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .display.countdown { color: var(--accent-2); }
+  .display.answer { color: var(--accent); }
+
+  .caption {
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ---------- 答えの入力 ---------- */
+  .entry {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .entry label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  #answerInput {
+    width: 220px;
+    padding: 12px 16px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  #answerInput:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  #answerInput:disabled {
+    opacity: 1;
+    color: var(--muted);
+  }
+  /* 中央揃えの入力なのでスピナーは出さない */
+  #answerInput::-webkit-outer-spin-button,
+  #answerInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  #answerInput { -moz-appearance: textfield; appearance: textfield; }
+
+  .judge {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .judge.correct { color: var(--accent); }
+  .judge.wrong   { color: var(--danger); }
+  .judge .detail {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--muted);
+    letter-spacing: 0;
+  }
+
+  .review {
+    width: 100%;
+    max-width: 520px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px;
+  }
+  .review h2 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .review ol {
+    margin: 0;
+    padding-left: 1.6em;
+    columns: 2;
+    column-gap: 24px;
+  }
+  .review li {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.05rem;
+    padding: 2px 0;
+    break-inside: avoid;
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <h1>フラッシュ暗算</h1>
+  <button id="soundBtn" class="btn-icon" aria-pressed="true"
+          aria-label="音のオン・オフ" title="音のオン・オフ">🔊</button>
+</header>
+
+<!-- 設定画面 -->
+<section id="settings" class="card">
+  <div class="field">
+    <label for="digits">桁数</label>
+    <div class="control">
+      <input type="number" id="digits" min="1" max="3" step="1" value="1">
+      <span class="unit">桁</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="count">口数（行数）</label>
+    <div class="control">
+      <input type="number" id="count" min="5" max="20" step="1" value="10">
+      <span class="unit">口</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="seconds">表示時間（全体）</label>
+    <div class="control">
+      <input type="number" id="seconds" min="1" max="120" step="0.1" value="5">
+      <span class="unit">秒</span>
+    </div>
+  </div>
+
+  <p class="error" id="error" role="alert"></p>
+
+  <button id="startBtn" class="btn-primary">スタート</button>
+
+  <p class="hint">
+    桁数 1〜3 / 口数 5〜20 / 指定した秒数の間に、すべての口数を均等な間隔で表示します。<br>
+    スタート後に 3 からカウントダウンが始まります。答えは最後の「答えを表示」ボタンで確認してください。<br>
+    カウントダウンと数字の切り替わりに合わせて音が鳴ります。右上のボタンで音のオン・オフを切り替えられます。<br>
+    問題の後に表示される入力欄に答えを書いて「答えを表示」を押すと、正誤を判定します（未入力でも答えだけ確認できます）。
+  </p>
+</section>
+
+<!-- 表示・結果画面 -->
+<section id="stage" class="stage hidden">
+  <p class="caption" id="caption"></p>
+  <div class="display" id="display"></div>
+
+  <div class="entry hidden" id="entry">
+    <label for="answerInput">あなたの答え</label>
+    <input type="number" id="answerInput" inputmode="numeric"
+           autocomplete="off" placeholder="0">
+  </div>
+
+  <p class="judge" id="judge"></p>
+
+  <div class="actions hidden" id="actions">
+    <button id="answerBtn" class="btn-accent">答えを表示</button>
+    <button id="replayBtn" class="btn-secondary hidden">同じ問題をもう一度</button>
+    <button id="retryBtn" class="btn-secondary hidden">新しい問題</button>
+    <button id="backBtn" class="btn-secondary hidden">設定に戻る</button>
+  </div>
+</section>
+
+<section id="review" class="review hidden">
+  <h2>出題内容</h2>
+  <ol id="reviewList"></ol>
+</section>
+
+<script>
+(function () {
+  'use strict';
+
+  var LIMITS = {
+    digits:  { min: 1,   max: 3   },
+    count:   { min: 5,   max: 20  },
+    seconds: { min: 1,   max: 120 }
+  };
+
+  /* ----- 効果音（Web Audio API で生成するため音源ファイル不要） ----- */
+  var audio = (function () {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    var supported = !!AC;
+    var on = true;
+    var ctx = null;
+
+    // ブラウザの自動再生制限のため、実際の生成はユーザー操作の中で行う
+    function ensure() {
+      if (!supported || !on) { return null; }
+      if (!ctx) {
+        try { ctx = new AC(); } catch (e) { supported = false; return null; }
+      }
+      if (ctx.state === 'suspended') { ctx.resume(); }
+      return ctx;
+    }
+
+    function tone(freq, duration, volume, type, offset) {
+      var c = ensure();
+      if (!c) { return; }
+      var t0 = c.currentTime + (offset || 0);
+      var osc = c.createOscillator();
+      var gain = c.createGain();
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+
+      // 立ち上がりと減衰を付けてプツッというノイズを防ぐ
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(volume, t0 + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(t0);
+      osc.stop(t0 + duration + 0.02);
+    }
+
+    return {
+      supported: supported,
+      unlock: ensure,
+      isOn: function () { return on; },
+      toggle: function () {
+        on = !on;
+        if (on) { ensure(); }
+        return on;
+      },
+      // カウントダウンの 3・2・1
+      count: function () { tone(660, 0.14, 0.25, 'triangle', 0); },
+      // 「スタート！」の合図
+      go: function () { tone(990, 0.25, 0.28, 'triangle', 0); },
+      // 数字が切り替わるたびの短い音（表示が速いときは音も短くする）
+      tick: function (seconds) { tone(1320, seconds, 0.20, 'square', 0); },
+      // 答えを表示したとき／正解のときの上昇和音
+      reveal: function () {
+        tone(523.25, 0.18, 0.18, 'sine', 0);
+        tone(659.25, 0.18, 0.18, 'sine', 0.09);
+        tone(783.99, 0.36, 0.18, 'sine', 0.18);
+      },
+      // 不正解のときの低い下降音
+      wrong: function () {
+        tone(311.13, 0.20, 0.18, 'sine', 0);
+        tone(233.08, 0.34, 0.18, 'sine', 0.14);
+      }
+    };
+  })();
+
+  var el = {
+    settings:   document.getElementById('settings'),
+    digits:     document.getElementById('digits'),
+    count:      document.getElementById('count'),
+    seconds:    document.getElementById('seconds'),
+    error:      document.getElementById('error'),
+    startBtn:   document.getElementById('startBtn'),
+    stage:      document.getElementById('stage'),
+    caption:    document.getElementById('caption'),
+    display:    document.getElementById('display'),
+    actions:    document.getElementById('actions'),
+    answerBtn:  document.getElementById('answerBtn'),
+    replayBtn:  document.getElementById('replayBtn'),
+    retryBtn:   document.getElementById('retryBtn'),
+    backBtn:    document.getElementById('backBtn'),
+    review:     document.getElementById('review'),
+    reviewList: document.getElementById('reviewList'),
+    soundBtn:   document.getElementById('soundBtn'),
+    entry:      document.getElementById('entry'),
+    answerInput: document.getElementById('answerInput'),
+    judge:      document.getElementById('judge')
+  };
+
+  var timers = [];
+  var numbers = [];
+  var settings = null;
+
+  function clearTimers() {
+    timers.forEach(clearTimeout);
+    timers = [];
+  }
+
+  function later(fn, delay) {
+    timers.push(setTimeout(fn, delay));
+  }
+
+  /* ----- 入力値の検証 ----- */
+  function readSettings() {
+    var digits  = parseInt(el.digits.value, 10);
+    var count   = parseInt(el.count.value, 10);
+    var seconds = parseFloat(el.seconds.value);
+
+    if (!isFinite(digits) || digits < LIMITS.digits.min || digits > LIMITS.digits.max) {
+      return { error: '桁数は 1 〜 3 の範囲で指定してください。' };
+    }
+    if (!isFinite(count) || count < LIMITS.count.min || count > LIMITS.count.max) {
+      return { error: '口数は 5 〜 20 の範囲で指定してください。' };
+    }
+    if (!isFinite(seconds) || seconds < LIMITS.seconds.min || seconds > LIMITS.seconds.max) {
+      return { error: '秒数は 1 〜 120 の範囲で指定してください。' };
+    }
+    return { digits: digits, count: count, seconds: seconds };
+  }
+
+  /* ----- 出題の生成（指定桁数ちょうどの正の整数） ----- */
+  function generateNumbers(digits, count) {
+    var min = digits === 1 ? 1 : Math.pow(10, digits - 1);
+    var max = Math.pow(10, digits) - 1;
+    var span = max - min + 1;
+    var list = [];
+    for (var i = 0; i < count; i++) {
+      list.push(min + Math.floor(Math.random() * span));
+    }
+    return list;
+  }
+
+  function total(list) {
+    return list.reduce(function (a, b) { return a + b; }, 0);
+  }
+
+  /* ----- 画面遷移 ----- */
+  function showSettings() {
+    clearTimers();
+    el.settings.classList.remove('hidden');
+    el.stage.classList.add('hidden');
+    el.review.classList.add('hidden');
+    el.actions.classList.add('hidden');
+    el.startBtn.disabled = false;
+  }
+
+  function showStage() {
+    el.settings.classList.add('hidden');
+    el.review.classList.add('hidden');
+    el.stage.classList.remove('hidden');
+    el.actions.classList.add('hidden');
+    el.answerBtn.classList.remove('hidden');
+    el.replayBtn.classList.add('hidden');
+    el.retryBtn.classList.add('hidden');
+    el.backBtn.classList.add('hidden');
+
+    // 答えの入力欄は問題が終わるまで隠しておく
+    el.entry.classList.add('hidden');
+    el.answerInput.value = '';
+    el.answerInput.disabled = false;
+    el.judge.textContent = '';
+    el.judge.className = 'judge';
+  }
+
+  /* ----- 実行フロー ----- */
+  function start(reuse) {
+    var s = reuse ? settings : readSettings();
+    if (!reuse) {
+      if (s.error) {
+        el.error.textContent = s.error;
+        return;
+      }
+      el.error.textContent = '';
+      settings = s;
+      numbers = generateNumbers(s.digits, s.count);
+    }
+
+    clearTimers();
+    showStage();
+    countdown(3);
+  }
+
+  function countdown(n) {
+    el.caption.textContent = 'まもなく開始';
+    el.display.className = 'display countdown';
+
+    function tick(value) {
+      if (value > 0) {
+        el.display.textContent = String(value);
+        audio.count();
+        later(function () { tick(value - 1); }, 1000);
+      } else {
+        // 文字は出さず、開始の合図は音と短い間だけにする
+        el.display.textContent = '';
+        audio.go();
+        later(flash, 700);
+      }
+    }
+    tick(n);
+  }
+
+  function flash() {
+    // 指定秒数を口数で割り、1 口あたりの表示時間を求める
+    var slot = (settings.seconds * 1000) / numbers.length;
+    // 数字が切り替わったことを認識できるよう、各スロットの末尾を空白にする
+    var blank = Math.min(slot * 0.25, 120);
+    var visible = slot - blank;
+    // 表示が速いときに音が重ならないよう、1 口の長さに収める
+    var beep = Math.min(visible / 1000 * 0.8, 0.06);
+
+    el.caption.textContent = '';
+    el.display.className = 'display';
+
+    numbers.forEach(function (num, i) {
+      later(function () {
+        el.display.textContent = String(num);
+        audio.tick(beep);
+      }, slot * i);
+      later(function () { el.display.textContent = ''; }, slot * i + visible);
+    });
+
+    later(finish, slot * numbers.length);
+  }
+
+  function finish() {
+    el.caption.textContent = '答えは？';
+    el.display.className = 'display';
+    el.display.textContent = '?';
+    el.entry.classList.remove('hidden');
+    el.actions.classList.remove('hidden');
+    el.answerInput.focus();
+  }
+
+  function revealAnswer() {
+    var correct = total(numbers);
+    var raw = el.answerInput.value.trim();
+    var guess = raw === '' ? null : parseInt(raw, 10);
+    var hit = guess !== null && guess === correct;
+
+    el.caption.textContent = '答え';
+    el.display.className = 'display answer';
+    el.display.textContent = String(correct);
+
+    // 入力があった場合のみ正誤を判定する（未入力なら答えの確認のみ）
+    if (guess === null || isNaN(guess)) {
+      el.judge.textContent = '';
+      el.judge.className = 'judge';
+      audio.reveal();
+    } else if (hit) {
+      el.judge.innerHTML = '正解！';
+      el.judge.className = 'judge correct';
+      audio.reveal();
+    } else {
+      el.judge.innerHTML = '不正解<span class="detail">正解との差: ' +
+                           (guess > correct ? '+' : '') + (guess - correct) +
+                           '</span>';
+      el.judge.className = 'judge wrong';
+      audio.wrong();
+    }
+
+    el.answerInput.disabled = true;
+    el.answerBtn.classList.add('hidden');
+    el.replayBtn.classList.remove('hidden');
+    el.retryBtn.classList.remove('hidden');
+    el.backBtn.classList.remove('hidden');
+
+    el.reviewList.innerHTML = '';
+    numbers.forEach(function (num) {
+      var li = document.createElement('li');
+      li.textContent = String(num);
+      el.reviewList.appendChild(li);
+    });
+    el.review.classList.remove('hidden');
+  }
+
+  /* ----- イベント ----- */
+  el.startBtn.addEventListener('click', function () {
+    audio.unlock(); // クリック（ユーザー操作）の中で音声を有効化する
+    start(false);
+  });
+  el.answerBtn.addEventListener('click', revealAnswer);
+
+  // 入力欄で Enter を押しても答え合わせできる（表示済みなら何もしない）
+  el.answerInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !el.answerBtn.classList.contains('hidden')) {
+      e.preventDefault();
+      revealAnswer();
+    }
+  });
+  el.replayBtn.addEventListener('click', function () {
+    audio.unlock();
+    start(true);
+  });
+  el.retryBtn.addEventListener('click', function () {
+    audio.unlock();
+    numbers = generateNumbers(settings.digits, settings.count);
+    start(true);
+  });
+  el.backBtn.addEventListener('click', showSettings);
+
+  if (audio.supported) {
+    el.soundBtn.addEventListener('click', function () {
+      var on = audio.toggle();
+      el.soundBtn.textContent = on ? '🔊' : '🔇';
+      el.soundBtn.setAttribute('aria-pressed', String(on));
+    });
+  } else {
+    el.soundBtn.disabled = true;
+    el.soundBtn.textContent = '🔇';
+    el.soundBtn.setAttribute('aria-pressed', 'false');
+  }
+
+  [el.digits, el.count, el.seconds].forEach(function (input) {
+    input.addEventListener('input', function () { el.error.textContent = ''; });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { start(false); }
+    });
+  });
+})();
+</script>
+</body>
+</html>
