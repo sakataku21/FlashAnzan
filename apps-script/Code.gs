@@ -6,11 +6,11 @@
  * 手順は README.md を参照してください。
  */
 
-var HEADERS = ['日時', '正誤', '桁数', '口数', '秒数', '入力した答', '正答'];
+var HEADERS = ['日時', '正誤', '桁数', '口数', '4桁回数', '秒数', '入力した答', '正答'];
 
-// 「秒数」列を足す前の見出し。既存シートを見分けて移行するために使う。
+// 列を足す前の見出し。既存シートを見分けて移行するために使う。
 var HEADERS_V1 = ['日時', '正誤', '桁数', '口数', '入力した答', '正答'];
-var SECONDS_COLUMN = 5;
+var HEADERS_V2 = ['日時', '正誤', '桁数', '口数', '秒数', '入力した答', '正答'];
 
 function doPost(e) {
   // 同時に複数の結果が届いても行が壊れないよう直列化する
@@ -26,6 +26,7 @@ function doPost(e) {
       data.result,
       data.digits,
       data.count,
+      Number(data.fourCount),
       Number(data.seconds),
       data.answer === '' || data.answer === null ? '' : Number(data.answer),
       Number(data.correct)
@@ -51,7 +52,7 @@ function getUserSheet(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(name);
   if (sheet) {
-    migrateToV2(sheet);
+    migrateSheet(sheet);
     return sheet;
   }
 
@@ -65,22 +66,29 @@ function getUserSheet(name) {
 }
 
 /**
- * 「秒数」列を足す前に作られたシートに、口数の右へ空の列を差し込みます。
- * 見出しが旧版と完全に一致するときだけ動くので、何度呼んでも安全です。
- * 既存の行は「入力した答」「正答」ごと右にずれるため、見出しとの対応は保たれます。
+ * 古い見出しのシートを、今の列構成へ順に引き上げます。
+ * 旧版から続けて呼ぶので、6 列のシートも 1 回で 8 列になります。
  */
-function migrateToV2(sheet) {
-  if (sheet.getLastColumn() !== HEADERS_V1.length) { return; }
+function migrateSheet(sheet) {
+  insertColumnIfHeaderMatches(sheet, HEADERS_V1, 5, '秒数');      // 6 列 → 7 列
+  insertColumnIfHeaderMatches(sheet, HEADERS_V2, 5, '4桁回数');   // 7 列 → 8 列
+}
 
-  var header = sheet.getRange(1, 1, 1, HEADERS_V1.length).getValues()[0];
-  for (var i = 0; i < HEADERS_V1.length; i++) {
-    if (String(header[i]).trim() !== HEADERS_V1[i]) { return; }
+/**
+ * 見出しが expected と完全に一致するときだけ、column の位置へ空の列を差し込みます。
+ * 一致しなければ何もしないので、何度呼んでも、無関係なシートに対しても安全です。
+ * 既存の行は右にずれるだけなので、見出しとの対応は保たれます。
+ */
+function insertColumnIfHeaderMatches(sheet, expected, column, label) {
+  if (sheet.getLastColumn() !== expected.length) { return; }
+
+  var header = sheet.getRange(1, 1, 1, expected.length).getValues()[0];
+  for (var i = 0; i < expected.length; i++) {
+    if (String(header[i]).trim() !== expected[i]) { return; }
   }
 
-  sheet.insertColumnBefore(SECONDS_COLUMN);
-  sheet.getRange(1, SECONDS_COLUMN)
-       .setValue(HEADERS[SECONDS_COLUMN - 1])
-       .setFontWeight('bold');
+  sheet.insertColumnBefore(column);
+  sheet.getRange(1, column).setValue(label).setFontWeight('bold');
 }
 
 /**

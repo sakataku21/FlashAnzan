@@ -682,6 +682,7 @@
       result: guess === null ? '未回答' : (guess === correct ? '正解' : '不正解'),
       digits: settings.digits,
       count: settings.count,
+      fourCount: settings.fourCount,
       seconds: settings.seconds,
       answer: guess === null ? '' : guess,
       correct: correct
@@ -706,7 +707,7 @@
   /* ----- 数字を表示領域の 7 割に合わせる ----- */
   var FILL_RATIO = 0.7;
   var REFERENCE_PX = 100;
-  var REFERENCE_DIGITS = 3;   // 3 桁が 7 割に収まる大きさを基準にする
+  var REFERENCE_DIGITS = 4;   // 4 桁が 7 割に収まる大きさを基準にする
   var fitted = false;         // 全画面表示中かどうか。画面回転時の再計算に使う。
   var answerText = '';        // 答えの表示中はこの文字列を保持して縮小を保つ。
 
@@ -738,8 +739,8 @@
   }
 
   /**
-   * 基準にする文字列。一番幅の広い数字を 3 つ並べたもの。
-   * 3 桁が確実に 7 割へ収まり、かつ最大限大きくなる。
+   * 基準にする文字列。一番幅の広い数字を 4 つ並べたもの。
+   * 4 桁が確実に 7 割へ収まり、かつ最大限大きくなる。
    */
   function referenceSample(style) {
     var widest = '0';
