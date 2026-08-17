@@ -373,6 +373,14 @@
   </div>
 
   <div class="field">
+    <label for="fourCount">うち4桁の回数</label>
+    <div class="control">
+      <input type="number" id="fourCount" min="0" max="20" step="1" value="0">
+      <span class="unit">回</span>
+    </div>
+  </div>
+
+  <div class="field">
     <label for="seconds">表示時間（全体）</label>
     <div class="control">
       <input type="number" id="seconds" min="1" max="120" step="0.1" value="5">
@@ -428,6 +436,7 @@
     digits:  { min: 1,   max: 3   },
     count:   { min: 5,   max: 20  },
     seconds: { min: 1,   max: 120 }
+    // 4 桁の回数は口数に依存するので readSettings 側で判定する
   };
 
   // 記録先の Google Apps Script ウェブアプリ
@@ -532,6 +541,7 @@
     settings:   document.getElementById('settings'),
     digits:     document.getElementById('digits'),
     count:      document.getElementById('count'),
+    fourCount:  document.getElementById('fourCount'),
     seconds:    document.getElementById('seconds'),
     error:      document.getElementById('error'),
     startBtn:   document.getElementById('startBtn'),
@@ -572,6 +582,7 @@
     var digits  = parseInt(el.digits.value, 10);
     var count   = parseInt(el.count.value, 10);
     var seconds = parseFloat(el.seconds.value);
+    var fourCount = parseInt(el.fourCount.value, 10);
 
     if (!isFinite(digits) || digits < LIMITS.digits.min || digits > LIMITS.digits.max) {
       return { error: '桁数は 1 〜 3 の範囲で指定してください。' };
@@ -582,19 +593,42 @@
     if (!isFinite(seconds) || seconds < LIMITS.seconds.min || seconds > LIMITS.seconds.max) {
       return { error: '秒数は 1 〜 120 の範囲で指定してください。' };
     }
-    return { digits: digits, count: count, seconds: seconds };
+    if (!isFinite(fourCount) || fourCount < 0 || fourCount > count) {
+      return { error: '4 桁の回数は 0 〜 口数（' + count + '）の範囲で指定してください。' };
+    }
+    return { digits: digits, count: count, fourCount: fourCount, seconds: seconds };
   }
 
-  /* ----- 出題の生成（指定桁数ちょうどの正の整数） ----- */
-  function generateNumbers(digits, count) {
+  /* ----- 出題の生成 ----- */
+  // 指定桁数ちょうどの正の整数を 1 つ返す
+  function randomNumber(digits) {
     var min = digits === 1 ? 1 : Math.pow(10, digits - 1);
     var max = Math.pow(10, digits) - 1;
-    var span = max - min + 1;
-    var list = [];
-    for (var i = 0; i < count; i++) {
-      list.push(min + Math.floor(Math.random() * span));
+    return min + Math.floor(Math.random() * (max - min + 1));
+  }
+
+  function shuffle(list) {
+    for (var i = list.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
     }
     return list;
+  }
+
+  /**
+   * 口数のうち fourCount 回だけを 4 桁にし、残りを指定桁数にする。
+   * 4 桁が何番目に出るかは毎回変わるよう、桁数の並びを混ぜてから生成する。
+   */
+  function generateNumbers(digits, count, fourCount) {
+    var plan = [];
+    for (var i = 0; i < count; i++) {
+      plan.push(i < fourCount ? 4 : digits);
+    }
+    shuffle(plan);
+
+    return plan.map(randomNumber);
   }
 
   function total(list) {
@@ -674,6 +708,7 @@
   var REFERENCE_PX = 100;
   var REFERENCE_DIGITS = 3;   // 3 桁が 7 割に収まる大きさを基準にする
   var fitted = false;         // 全画面表示中かどうか。画面回転時の再計算に使う。
+  var answerText = '';        // 答えの表示中はこの文字列を保持して縮小を保つ。
 
   // 実測用の隠し要素。表示中の見た目と同じ書体・字重で測る。
   function measure(texts, style) {
@@ -744,8 +779,27 @@
 
   function releaseDisplay() {
     fitted = false;
+    answerText = '';
     el.display.classList.remove('fill');
     el.display.style.fontSize = '';
+  }
+
+  /**
+   * 答えは 4 桁を混ぜると 6 桁まで伸びるため、既定の大きさでは
+   * 狭い画面からはみ出す。収まらないときだけ縮める。
+   */
+  function fitAnswer(text) {
+    answerText = text;
+    el.display.style.fontSize = '';
+
+    var style = window.getComputedStyle(el.display);
+    var base = parseFloat(style.fontSize);
+    var natural = measure([text], style).width * base / REFERENCE_PX;
+    var limit = el.stage.clientWidth;
+
+    if (natural > limit && natural > 0) {
+      el.display.style.fontSize = (base * limit / natural) + 'px';
+    }
   }
 
   /* ----- 画面遷移 ----- */
@@ -788,7 +842,7 @@
       }
       el.error.textContent = '';
       settings = s;
-      numbers = generateNumbers(s.digits, s.count);
+      numbers = generateNumbers(s.digits, s.count, s.fourCount);
       rememberUser(el.userName.value.trim());
     }
 
@@ -860,6 +914,7 @@
     el.caption.textContent = '答え';
     el.display.className = 'display answer';
     el.display.textContent = String(correct);
+    fitAnswer(String(correct));
 
     // 入力があった場合のみ正誤を判定する（未入力なら答えの確認のみ）
     if (guess === null || isNaN(guess)) {
@@ -915,7 +970,7 @@
   });
   el.retryBtn.addEventListener('click', function () {
     audio.unlock();
-    numbers = generateNumbers(settings.digits, settings.count);
+    numbers = generateNumbers(settings.digits, settings.count, settings.fourCount);
     start(true);
   });
   el.backBtn.addEventListener('click', showSettings);
@@ -932,7 +987,7 @@
     el.soundBtn.setAttribute('aria-pressed', 'false');
   }
 
-  [el.digits, el.count, el.seconds, el.userName].forEach(function (input) {
+  [el.digits, el.count, el.fourCount, el.seconds, el.userName].forEach(function (input) {
     input.addEventListener('input', function () { el.error.textContent = ''; });
     input.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { start(false); }
@@ -942,12 +997,19 @@
   // 画面の回転やウィンドウサイズの変更にも 7 割を保つ
   window.addEventListener('resize', function () {
     if (fitted) { fitDisplay(); }
+    else if (answerText) { fitAnswer(answerText); }
   });
 
   // 実測の前に abacus2 を読み込んでおく（未読込だと代替書体の幅で測ってしまう）
   if (document.fonts && document.fonts.load) {
     document.fonts.load('100px abacus2', '0123456789');
   }
+
+  // 口数を変えたら「うち4桁の回数」の上限も追従させる
+  el.count.addEventListener('input', function () {
+    var count = parseInt(el.count.value, 10);
+    if (isFinite(count)) { el.fourCount.max = String(count); }
+  });
 
   restoreSaved();
 })();
