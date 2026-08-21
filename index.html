@@ -530,12 +530,6 @@
       go: function () { tone(990, 0.25, 0.28, 'triangle', 0); },
       // 数字が切り替わるたびの短い音（表示が速いときは音も短くする）
       tick: function (seconds) { tone(1320, seconds, 0.20, 'square', 0); },
-      // 答えだけ確認したとき（未回答）の上昇和音
-      reveal: function () {
-        tone(523.25, 0.18, 0.18, 'sine', 0);
-        tone(659.25, 0.18, 0.18, 'sine', 0.09);
-        tone(783.99, 0.36, 0.18, 'sine', 0.18);
-      },
       // 正解のピンポン。高い「ピン」から低い「ポン」へ
       correct: function () {
         bell(1318.51, 0);      // ピン（E6）
@@ -957,11 +951,11 @@
     el.display.textContent = String(correct);
     fitAnswer(String(correct));
 
-    // 入力があった場合のみ正誤を判定する（未入力なら答えの確認のみ）
+    // 判定を出すのは入力があったときだけ。未回答は不正解と同じ音で知らせる。
     if (guess === null || isNaN(guess)) {
       el.judge.textContent = '';
       el.judge.className = 'judge';
-      audio.reveal();
+      audio.wrong();
     } else if (hit) {
       el.judge.innerHTML = '正解！';
       el.judge.className = 'judge correct';
