@@ -480,6 +480,41 @@
       osc.stop(t0 + duration + 0.02);
     }
 
+    // ブザーのように鳴っている間は音量を保ち、最後だけ切る
+    function sustained(freq, duration, volume, type, offset) {
+      var c = ensure();
+      if (!c) { return; }
+      var t0 = c.currentTime + (offset || 0);
+      var osc = c.createOscillator();
+      var gain = c.createGain();
+
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(volume, t0 + 0.008);
+      gain.gain.setValueAtTime(volume, t0 + duration - 0.02);
+      gain.gain.linearRampToValueAtTime(0.0001, t0 + duration);
+
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(t0);
+      osc.stop(t0 + duration + 0.02);
+    }
+
+    // 呼び鈴のひと突き。整数倍でない倍音を足して金属らしさを出す
+    function bell(freq, offset) {
+      tone(freq, 1.1, 0.24, 'sine', offset);
+      tone(freq * 2.76, 0.28, 0.05, 'sine', offset);
+    }
+
+    // ブザーのひと吹き。少しずらした 2 音のうなりで濁らせる
+    function buzz(offset, duration) {
+      sustained(155, duration, 0.11, 'sawtooth', offset);
+      sustained(164, duration, 0.11, 'sawtooth', offset);
+      sustained(78,  duration, 0.09, 'square',   offset);
+    }
+
     return {
       supported: supported,
       unlock: ensure,
@@ -495,16 +530,21 @@
       go: function () { tone(990, 0.25, 0.28, 'triangle', 0); },
       // 数字が切り替わるたびの短い音（表示が速いときは音も短くする）
       tick: function (seconds) { tone(1320, seconds, 0.20, 'square', 0); },
-      // 答えを表示したとき／正解のときの上昇和音
+      // 答えだけ確認したとき（未回答）の上昇和音
       reveal: function () {
         tone(523.25, 0.18, 0.18, 'sine', 0);
         tone(659.25, 0.18, 0.18, 'sine', 0.09);
         tone(783.99, 0.36, 0.18, 'sine', 0.18);
       },
-      // 不正解のときの低い下降音
+      // 正解のピンポン。高い「ピン」から低い「ポン」へ
+      correct: function () {
+        bell(1318.51, 0);      // ピン（E6）
+        bell(1046.50, 0.20);   // ポン（C6）
+      },
+      // 不正解のブブー。短く切ってからもう一度長めに鳴らす
       wrong: function () {
-        tone(311.13, 0.20, 0.18, 'sine', 0);
-        tone(233.08, 0.34, 0.18, 'sine', 0.14);
+        buzz(0,    0.16);
+        buzz(0.22, 0.42);
       }
     };
   })();
@@ -925,7 +965,7 @@
     } else if (hit) {
       el.judge.innerHTML = '正解！';
       el.judge.className = 'judge correct';
-      audio.reveal();
+      audio.correct();
     } else {
       el.judge.innerHTML = '不正解<span class="detail">正解との差: ' +
                            (guess > correct ? '+' : '') + (guess - correct) +
