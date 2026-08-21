@@ -449,6 +449,11 @@
     var on = true;
     var ctx = null;
 
+    // 正誤を知らせる音（ピンポン・ブブー）だけの移調。半音単位で、
+    // 負の値だけ下がる（-4 = 2 音下げ）。カウントダウンや数字の音は動かさない。
+    var JUDGE_SEMITONES = -4;
+    var JUDGE_PITCH = Math.pow(2, JUDGE_SEMITONES / 12);
+
     // ブラウザの自動再生制限のため、実際の生成はユーザー操作の中で行う
     function ensure() {
       if (!supported || !on) { return null; }
@@ -504,15 +509,16 @@
 
     // 呼び鈴のひと突き。整数倍でない倍音を足して金属らしさを出す
     function bell(freq, offset) {
-      tone(freq, 1.1, 0.24, 'sine', offset);
-      tone(freq * 2.76, 0.28, 0.05, 'sine', offset);
+      var f = freq * JUDGE_PITCH;
+      tone(f, 1.1, 0.24, 'sine', offset);
+      tone(f * 2.76, 0.28, 0.05, 'sine', offset);
     }
 
     // ブザーのひと吹き。少しずらした 2 音のうなりで濁らせる
     function buzz(offset, duration) {
-      sustained(155, duration, 0.11, 'sawtooth', offset);
-      sustained(164, duration, 0.11, 'sawtooth', offset);
-      sustained(78,  duration, 0.09, 'square',   offset);
+      sustained(155 * JUDGE_PITCH, duration, 0.11, 'sawtooth', offset);
+      sustained(164 * JUDGE_PITCH, duration, 0.11, 'sawtooth', offset);
+      sustained(78  * JUDGE_PITCH, duration, 0.09, 'square',   offset);
     }
 
     return {
