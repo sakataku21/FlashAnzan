@@ -6,11 +6,12 @@
  * 手順は README.md を参照してください。
  */
 
-var HEADERS = ['日時', '正誤', '桁数', '口数', '4桁回数', '秒数', '入力した答', '正答'];
+var HEADERS = ['日時', '正誤', '桁数', '口数', '4桁回数', 'マイナス', '秒数', '入力した答', '正答'];
 
 // 列を足す前の見出し。既存シートを見分けて移行するために使う。
 var HEADERS_V1 = ['日時', '正誤', '桁数', '口数', '入力した答', '正答'];
 var HEADERS_V2 = ['日時', '正誤', '桁数', '口数', '秒数', '入力した答', '正答'];
+var HEADERS_V3 = ['日時', '正誤', '桁数', '口数', '4桁回数', '秒数', '入力した答', '正答'];
 
 function doPost(e) {
   // 同時に複数の結果が届いても行が壊れないよう直列化する
@@ -27,6 +28,7 @@ function doPost(e) {
       data.digits,
       data.count,
       Number(data.fourCount),
+      data.allowMinus ? 'あり' : 'なし',
       Number(data.seconds),
       data.answer === '' || data.answer === null ? '' : Number(data.answer),
       Number(data.correct)
@@ -72,6 +74,7 @@ function getUserSheet(name) {
 function migrateSheet(sheet) {
   insertColumnIfHeaderMatches(sheet, HEADERS_V1, 5, '秒数');      // 6 列 → 7 列
   insertColumnIfHeaderMatches(sheet, HEADERS_V2, 5, '4桁回数');   // 7 列 → 8 列
+  insertColumnIfHeaderMatches(sheet, HEADERS_V3, 6, 'マイナス');  // 8 列 → 9 列
 }
 
 /**
