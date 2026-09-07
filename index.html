@@ -113,6 +113,18 @@
 
   .unit { color: var(--muted); font-size: 0.9rem; width: 2.5em; }
 
+  input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
   /* ---------- ユーザー名 ---------- */
   input[type="text"] {
     width: 180px;
@@ -185,12 +197,12 @@
   }
 
   /* ---------- 数字表示用フォント ---------- */
-  /* abacus2 (Copyright CANON INC. 1997) を 0-9 と ? だけに絞り込み、
+  /* abacus2 (Copyright CANON INC. 1997) を 0-9 と ? と - だけに絞り込み、
      woff2 にして埋め込んでいる。ファイル分割せず data URI にすることで、
      file:// で開いたときもフォント読み込みが CORS で弾かれない。 */
   @font-face {
     font-family: 'abacus2';
-    src: url("data:font/woff2;base64,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") format('woff2');
+    src: url("data:font/woff2;base64,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") format('woff2');
     font-display: block;
   }
 
@@ -381,6 +393,14 @@
   </div>
 
   <div class="field">
+    <label for="allowMinus">マイナスを含める</label>
+    <div class="control">
+      <input type="checkbox" id="allowMinus">
+      <span class="unit"></span>
+    </div>
+  </div>
+
+  <div class="field">
     <label for="seconds">表示時間（全体）</label>
     <div class="control">
       <input type="number" id="seconds" min="1" max="120" step="0.1" value="5">
@@ -397,6 +417,7 @@
     スタート後に 3 からカウントダウンが始まります。答えは最後の「答えを表示」ボタンで確認してください。<br>
     カウントダウンと数字の切り替わりに合わせて音が鳴ります。右上のボタンで音のオン・オフを切り替えられます。<br>
     問題の後に表示される入力欄に答えを書いて「答えを表示」を押すと、正誤を判定します（未入力でも答えだけ確認できます）。<br>
+    「マイナスを含める」を入れると引く数も混ざります。途中の計算が一度もマイナスにならないよう出題するので、答えは必ず 0 以上です。<br>
     答え合わせの結果は、ユーザー名ごとのシートとしてスプレッドシートに自動で記録されます（ユーザー名が未入力のときは記録しません）。
   </p>
 </section>
@@ -585,6 +606,7 @@
     digits:     document.getElementById('digits'),
     count:      document.getElementById('count'),
     fourCount:  document.getElementById('fourCount'),
+    allowMinus: document.getElementById('allowMinus'),
     seconds:    document.getElementById('seconds'),
     error:      document.getElementById('error'),
     startBtn:   document.getElementById('startBtn'),
@@ -626,6 +648,7 @@
     var count   = parseInt(el.count.value, 10);
     var seconds = parseFloat(el.seconds.value);
     var fourCount = parseInt(el.fourCount.value, 10);
+    var allowMinus = el.allowMinus.checked;
 
     if (!isFinite(digits) || digits < LIMITS.digits.min || digits > LIMITS.digits.max) {
       return { error: '桁数は 1 〜 3 の範囲で指定してください。' };
@@ -639,15 +662,30 @@
     if (!isFinite(fourCount) || fourCount < 0 || fourCount > count) {
       return { error: '4 桁の回数は 0 〜 口数（' + count + '）の範囲で指定してください。' };
     }
-    return { digits: digits, count: count, fourCount: fourCount, seconds: seconds };
+    return {
+      digits: digits, count: count, fourCount: fourCount,
+      allowMinus: allowMinus, seconds: seconds
+    };
   }
 
   /* ----- 出題の生成 ----- */
-  // 指定桁数ちょうどの正の整数を 1 つ返す
-  function randomNumber(digits) {
-    var min = digits === 1 ? 1 : Math.pow(10, digits - 1);
-    var max = Math.pow(10, digits) - 1;
+  var MINUS_RATE = 0.35;   // マイナスを混ぜるときに各口がマイナスになる割合
+
+  function randomBetween(min, max) {
     return min + Math.floor(Math.random() * (max - min + 1));
+  }
+
+  // 指定桁数ちょうどの正の整数の範囲
+  function digitRange(digits) {
+    return {
+      min: digits === 1 ? 1 : Math.pow(10, digits - 1),
+      max: Math.pow(10, digits) - 1
+    };
+  }
+
+  function randomNumber(digits) {
+    var range = digitRange(digits);
+    return randomBetween(range.min, range.max);
   }
 
   function shuffle(list) {
@@ -663,15 +701,40 @@
   /**
    * 口数のうち fourCount 回だけを 4 桁にし、残りを指定桁数にする。
    * 4 桁が何番目に出るかは毎回変わるよう、桁数の並びを混ぜてから生成する。
+   *
+   * allowMinus のときは一部をマイナスにする。そろばんで追える出題にするため、
+   * 引いた時点の途中経過が一度もマイナスにならない範囲でしか引かない。
+   * 途中経過が 0 以上なら最後の答えも当然 0 以上になる。
    */
-  function generateNumbers(digits, count, fourCount) {
+  function generateNumbers(digits, count, fourCount, allowMinus) {
     var plan = [];
     for (var i = 0; i < count; i++) {
       plan.push(i < fourCount ? 4 : digits);
     }
     shuffle(plan);
 
-    return plan.map(randomNumber);
+    var list = [];
+    var running = 0;
+
+    plan.forEach(function (d) {
+      var range = digitRange(d);
+
+      // その桁数で引ける最小の数すら残高を超えるなら、引き算にはできない
+      var canSubtract = allowMinus && running >= range.min;
+
+      if (canSubtract && Math.random() < MINUS_RATE) {
+        // 引きすぎないよう、残高を超えない範囲から選ぶ
+        var value = randomBetween(range.min, Math.min(range.max, running));
+        running -= value;
+        list.push(-value);
+      } else {
+        var plus = randomBetween(range.min, range.max);
+        running += plus;
+        list.push(plus);
+      }
+    });
+
+    return list;
   }
 
   function total(list) {
@@ -886,7 +949,7 @@
       }
       el.error.textContent = '';
       settings = s;
-      numbers = generateNumbers(s.digits, s.count, s.fourCount);
+      numbers = generateNumbers(s.digits, s.count, s.fourCount, s.allowMinus);
       rememberUser(el.userName.value.trim());
     }
 
@@ -1014,7 +1077,8 @@
   });
   el.retryBtn.addEventListener('click', function () {
     audio.unlock();
-    numbers = generateNumbers(settings.digits, settings.count, settings.fourCount);
+    numbers = generateNumbers(settings.digits, settings.count, settings.fourCount,
+                              settings.allowMinus);
     start(true);
   });
   el.backBtn.addEventListener('click', showSettings);
